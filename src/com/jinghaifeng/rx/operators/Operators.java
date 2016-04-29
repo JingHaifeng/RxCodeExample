@@ -3,13 +3,13 @@ package com.jinghaifeng.rx.operators;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
-import rx.functions.Action1;
-import rx.functions.Func0;
-import rx.functions.Func1;
-import rx.functions.Func2;
+import rx.functions.*;
 import rx.observables.GroupedObservable;
 import rx.schedulers.Schedulers;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -21,7 +21,7 @@ import java.util.concurrent.TimeoutException;
 public class Operators {
 
     public static void main(String[] args) {
-        debounce();
+        takeUntil();
     }
 
     /**
@@ -233,10 +233,340 @@ public class Operators {
                 subscriber.onCompleted();
             }
         })
-                .debounce(new Func1<Integer, Observable<Integer>>() {
+                .debounce(100, TimeUnit.MILLISECONDS)
+                .subscribe(getObserver());
+    }
+
+    public static void distinct() {
+        Observable.just(1, 2, 3, 1, 1, 4, 5, 6, 3)
+                .distinct()
+                .subscribe(getObserver());
+    }
+
+    public static void elementAt() {
+        Observable.range(0, 10)
+                .elementAt(9)
+                .subscribe(getObserver());
+    }
+
+    public static void filter() {
+        Observable.range(0, 100)
+                .filter(new Func1<Integer, Boolean>() {
                     @Override
-                    public Observable<Integer> call(Integer integer) {
-                        return Observable.just(integer);
+                    public Boolean call(Integer integer) {
+                        return integer % 2 == 0;
+                    }
+                })
+                .subscribe(getObserver());
+    }
+
+    public static void first() {
+        Observable.just(1, 2, 3)
+                .first()
+                .subscribe(getObserver());
+    }
+
+    public static void ignoreElements() {
+        Observable.range(1, 10)
+                .ignoreElements()
+                .subscribe(getObserver());
+    }
+
+    public static void last() {
+        Observable.just(1, 2, 3)
+                .last()
+                .subscribe(getObserver());
+
+        Observable.range(1, 10)
+                .last(new Func1<Integer, Boolean>() {
+                    @Override
+                    public Boolean call(Integer integer) {
+                        return integer == 9;
+                    }
+                })
+                .subscribe(getObserver());
+    }
+
+    public static void sample() {
+        Observable.interval(10, TimeUnit.MILLISECONDS, Schedulers.trampoline())
+                .sample(50, TimeUnit.MILLISECONDS)
+                .subscribe(getObserver());
+    }
+
+    public static void skip() {
+        Observable.range(0, 10)
+                .skip(9)
+                .subscribe(getObserver());
+    }
+
+    public static void skipLast() {
+        Observable.range(0, 100)
+                .skipLast(80)
+                .subscribe(getObserver());
+    }
+
+    public static void take() {
+        Observable.range(0, 100)
+                .take(50)
+                .subscribe(getObserver());
+    }
+
+    public static void takeLast() {
+        Observable.range(0, 100)
+                .takeLast(10)
+                .subscribe(getObserver());
+    }
+
+    public static void combineLastest() {
+        List<Observable<?>> observables = new ArrayList<>();
+        observables.add(Observable.defer(new Func0<Observable<String>>() {
+            @Override
+            public Observable<String> call() {
+                return Observable.just("Hello");
+            }
+        }));
+        observables.add(Observable.defer(new Func0<Observable<Integer>>() {
+            @Override
+            public Observable<Integer> call() {
+                return Observable.range(0, 10);
+            }
+        }));
+        Observable.combineLatest(observables, new FuncN<String>() {
+            @Override
+            public String call(Object... objects) {
+                StringBuilder stringBuilder = new StringBuilder();
+                for (int i = 0; i < objects.length; i++) {
+                    stringBuilder.append(objects[i]);
+                }
+                return stringBuilder.toString();
+            }
+
+        })
+                .subscribe(getObserver());
+    }
+
+    /**
+     * ?
+     */
+    public static void join() {
+        Observable.interval(1000, TimeUnit.MILLISECONDS, Schedulers.trampoline())
+                .join(Observable.interval(1000, TimeUnit.MILLISECONDS, Schedulers.trampoline()),
+                        new Func1<Long, Observable<Long>>() {
+                            @Override
+                            public Observable<Long> call(Long aLong) {
+                                return Observable.timer(2, TimeUnit.SECONDS);
+                            }
+                        },
+                        new Func1<Long, Observable<Long>>() {
+                            @Override
+                            public Observable<Long> call(Long aLong) {
+                                return Observable.timer(1, TimeUnit.SECONDS);
+                            }
+                        }
+                        , new Func2<Long, Long, String>() {
+                            @Override
+                            public String call(Long aLong, Long aLong2) {
+                                return aLong + "---" + aLong2;
+                            }
+                        }).subscribe(getObserver());
+    }
+
+    public static void merge() {
+        Observable.just(1, 2, 3, 4)
+                .mergeWith(Observable.just(2, 3, 4, 5, 6, 7, 9))
+                .distinct()
+                .subscribe(getObserver());
+    }
+
+    public static void startWith() {
+        Observable.just(0, 1, 2, 3)
+                .startWith(-1)
+                .subscribe(getObserver());
+    }
+
+    public static void _switch() {
+        Observable.just(0, 100)
+                .switchOnNext(Observable.create(new Observable.OnSubscribe<Observable<Integer>>() {
+                    @Override
+                    public void call(Subscriber<? super Observable<Integer>> subscriber) {
+                        if (!subscriber.isUnsubscribed()) {
+                            try {
+                                Thread.sleep(100);
+                            } catch (InterruptedException e) {
+                                subscriber.onError(e);
+                            }
+                            subscriber.onNext(Observable.just(-1));
+                        }
+                        subscriber.onCompleted();
+                    }
+                }).delay(1, TimeUnit.SECONDS, Schedulers.trampoline()))
+                .subscribe(getObserver());
+    }
+
+    public static void zip() {
+        Observable.range(0, 100)
+                .zipWith(Observable.range(200, 300), new Func2<Integer, Integer, Integer>() {
+                    @Override
+                    public Integer call(Integer integer, Integer integer2) {
+                        return integer + integer2;
+                    }
+                }).subscribe(getObserver());
+    }
+
+    public static void _catch() {
+        Observable.error(new Throwable("This is error!")).delay(1, TimeUnit.SECONDS)
+                .onErrorReturn(new Func1<Throwable, String>() {
+                    @Override
+                    public String call(Throwable throwable) {
+                        return throwable.getMessage();
+                    }
+                })
+                .subscribe(getObserver());
+    }
+
+    public static void retry() {
+        Observable.create(new Observable.OnSubscribe<String>() {
+            @Override
+            public void call(Subscriber<? super String> subscriber) {
+                if (!subscriber.isUnsubscribed()) {
+                    subscriber.onNext("Start");
+                    subscriber.onError(new Throwable("RUN --- ERROR"));
+                }
+            }
+        })
+                .retry(3)
+                .subscribe(getObserver());
+    }
+
+    //
+    public static void delay() {
+        Observable.interval(10, TimeUnit.MILLISECONDS, Schedulers.immediate())
+                .delay(100, TimeUnit.MILLISECONDS, Schedulers.immediate())
+                .subscribe(getObserver());
+    }
+
+    public static void _do() {
+        Observable.just(1, 2, 3)
+                .doOnSubscribe(new Action0() {
+                    @Override
+                    public void call() {
+                        System.out.println("doOnSubscribe");
+                    }
+                })
+                .doOnNext(new Action1<Integer>() {
+                    @Override
+                    public void call(Integer integer) {
+                        System.out.println("doOnNext:" + integer);
+                    }
+                })
+                .doOnCompleted(new Action0() {
+                    @Override
+                    public void call() {
+                        System.out.println("doOnCompleted");
+                    }
+                })
+                .subscribe(getObserver());
+    }
+
+    public static void materializeAndDematerialize() {
+        Observable.just(1, 2, 3)
+                .materialize()
+                .dematerialize()
+                .subscribe(getObserver());
+    }
+
+    public static void timeInterval() {
+        Observable.interval(10, TimeUnit.MILLISECONDS, Schedulers.immediate())
+                .timeInterval()
+                .subscribe(getObserver());
+    }
+
+    public static void timeout() {
+        Observable.just(1)
+                .delay(2, TimeUnit.SECONDS, Schedulers.immediate())
+                .timeout(1, TimeUnit.SECONDS)
+                .subscribe(getObserver());
+    }
+
+    public static void timestamp() {
+        Observable.range(0, 10)
+                .timestamp()
+                .subscribe(getObserver());
+    }
+
+    public static void using() {
+        //todo
+    }
+
+    public static void to() {
+        Observable.range(0, 10)
+                .toList()
+                .subscribe(getObserver());
+        Iterator i = Observable.range(0, 10)
+                .toBlocking()
+                .getIterator();
+        while (i.hasNext()) {
+            System.out.print(i.next() + "\t");
+        }
+    }
+
+    public static void all() {
+        Observable.range(0, 10)
+                .all(new Func1<Integer, Boolean>() {
+                    @Override
+                    public Boolean call(Integer integer) {
+                        return integer < 10;
+                    }
+                })
+                .subscribe(getObserver());
+    }
+
+    public static void amb() {
+        Observable
+                .merge(Observable
+                                .just(1)
+                                .delay(2, TimeUnit.SECONDS, Schedulers.trampoline()).timestamp(),
+                        Observable
+                                .just(2)
+                                .delay(1, TimeUnit.SECONDS, Schedulers.trampoline())).timestamp()
+                .subscribe(getObserver());
+    }
+
+    public static void contains() {
+        Observable.just(1, 2, 3)
+                .contains(1)
+                .subscribe(getObserver());
+    }
+
+    public static void sequenceEqual() {
+        Observable.sequenceEqual(Observable.just(1, 2, 3)
+                , Observable.just(1, 2, 3))
+                .subscribe(getObserver());
+    }
+
+    public static void skipUntil() {
+        Observable.interval(1,TimeUnit.SECONDS,Schedulers.immediate())
+                .skipUntil(Observable.just(1).delay(5, TimeUnit.SECONDS))
+                .subscribe(getObserver());
+    }
+
+    public static void skipWhile() {
+        Observable.interval(100,TimeUnit.MILLISECONDS,Schedulers.immediate())
+                .skipWhile(new Func1<Long, Boolean>() {
+                    @Override
+                    public Boolean call(Long aLong) {
+                        return aLong < 10;
+                    }
+                })
+                .subscribe(getObserver());
+    }
+
+    public static void takeUntil() {
+        Observable.interval(1,TimeUnit.MILLISECONDS,Schedulers.immediate())
+                .takeUntil(new Func1<Long, Boolean>() {
+                    @Override
+                    public Boolean call(Long aLong) {
+                        return aLong == 10;
                     }
                 })
                 .subscribe(getObserver());
