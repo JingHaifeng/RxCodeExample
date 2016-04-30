@@ -4,6 +4,7 @@ import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
 import rx.functions.*;
+import rx.observables.ConnectableObservable;
 import rx.observables.GroupedObservable;
 import rx.schedulers.Schedulers;
 
@@ -21,7 +22,7 @@ import java.util.concurrent.TimeoutException;
 public class Operators {
 
     public static void main(String[] args) {
-        takeUntil();
+        replay();
     }
 
     /**
@@ -545,13 +546,13 @@ public class Operators {
     }
 
     public static void skipUntil() {
-        Observable.interval(1,TimeUnit.SECONDS,Schedulers.immediate())
+        Observable.interval(1, TimeUnit.SECONDS, Schedulers.immediate())
                 .skipUntil(Observable.just(1).delay(5, TimeUnit.SECONDS))
                 .subscribe(getObserver());
     }
 
     public static void skipWhile() {
-        Observable.interval(100,TimeUnit.MILLISECONDS,Schedulers.immediate())
+        Observable.interval(100, TimeUnit.MILLISECONDS, Schedulers.immediate())
                 .skipWhile(new Func1<Long, Boolean>() {
                     @Override
                     public Boolean call(Long aLong) {
@@ -562,7 +563,7 @@ public class Operators {
     }
 
     public static void takeUntil() {
-        Observable.interval(1,TimeUnit.MILLISECONDS,Schedulers.immediate())
+        Observable.interval(1, TimeUnit.MILLISECONDS, Schedulers.immediate())
                 .takeUntil(new Func1<Long, Boolean>() {
                     @Override
                     public Boolean call(Long aLong) {
@@ -570,6 +571,73 @@ public class Operators {
                     }
                 })
                 .subscribe(getObserver());
+    }
+
+    public static void count() {
+        Observable.range(0, 10)
+                .count()
+                .subscribe(getObserver());
+    }
+
+    public static void concat() {
+        Observable.range(0, 100)
+                .concatWith(Observable.just(-1, -2))
+                .subscribe(getObserver());
+    }
+
+    public static void reduce() {
+        Observable.range(0, 10)
+                .reduce(new Func2<Integer, Integer, Integer>() {
+                    @Override
+                    public Integer call(Integer integer, Integer integer2) {
+                        return integer + integer2;
+                    }
+                })
+                .subscribe(getObserver());
+    }
+
+    public static void collect() {
+        Observable.range(0, 10)
+                .collect(new Func0<List<Integer>>() {
+                    @Override
+                    public List<Integer> call() {
+                        return new ArrayList<Integer>();
+                    }
+                }, new Action2<List<Integer>, Integer>() {
+                    @Override
+                    public void call(List<Integer> integers, Integer integer) {
+                        integers.add(integer);
+                    }
+                })
+                .subscribe(getObserver());
+    }
+
+    public static void publish() {
+        ConnectableObservable observable = Observable.range(0, 100).publish();
+        observable.subscribe(getObserver());
+        observable.subscribe(getObserver());
+        observable.connect();
+    }
+
+    /**
+     * ?
+     */
+    public static void refCount() {
+        ConnectableObservable observable = Observable.range(0, 100).publish();
+        observable.subscribe(getObserver());
+        observable.connect();
+        observable.subscribe(getObserver());
+        observable.refCount();
+    }
+
+    /**
+     * ?
+     */
+    public static void replay() {
+        ConnectableObservable observable = Observable.range(0, 100).replay(20);
+        observable.subscribe(getObserver());
+        observable.subscribe(getObserver());
+        observable.connect();
     }
 
     private static <T> Observer getObserver() {
